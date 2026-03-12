@@ -1,0 +1,31 @@
+===== Archivos de compilación =====
+build/
+build-*/
+*.o
+*.a
+*.so
+*.out
+*.exe===== Archivos Qt generados automáticamente =====
+.user
+.user.
+.qmlproject.user
+moc_.cpp
+ui_.h
+qrc_.cpp
+Makefile
+Makefile.
+.qmake.cache
+.qmake.stash===== CMake (si usas CMake en lugar de qmake) =====
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.cmake===== Archivos del sistema operativo =====
+.DS_Store
+Thumbs.db===== IDEs y editores =====
+.vscode/
+.idea/
+*.swp
+*~===== Logs y temporales =====
+*.log
+*.tmp
+*.bak
