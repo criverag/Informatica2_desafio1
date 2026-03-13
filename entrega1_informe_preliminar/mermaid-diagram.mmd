@@ -1,0 +1,39 @@
+flowchart TD
+    A([INICIO]) --> B[Pedir ancho y alto al usuario]
+    B --> C{¿Ancho >= 8 y\nmúltiplo de 8?}
+    C -- No --> B
+    C -- Sí --> D[Crear tablero dinámico\ncon new]
+    D --> E[Seleccionar pieza inicial\naleatoriamente]
+    E --> F[Colocar pieza en parte\nsuperior del tablero]
+    F --> G{¿Hay colisión\nen posición inicial?}
+    G -- Sí --> N([GAME OVER])
+    G -- No --> H[Mostrar tablero\nen consola]
+    H --> I[Pedir acción al usuario\nA=Izq D=Der S=Bajar W=Rotar Q=Salir]
+    I --> J{¿Qué acción\neligió?}
+
+    J -- Mover Izquierda --> K1{¿Movimiento\nválido?}
+    J -- Mover Derecha --> K2{¿Movimiento\nválido?}
+    J -- Bajar --> K3{¿Movimiento\nválido?}
+    J -- Rotar --> K4[Cambiar a siguiente\norientación de pieza]
+    J -- Salir --> Z([FIN DEL JUEGO])
+
+    K1 -- Sí --> L1[Actualizar posición\nde la pieza]
+    K1 -- No --> H
+    K2 -- Sí --> L1
+    K2 -- No --> H
+    K4 --> H
+
+    K3 -- Sí --> L1
+    L1 --> H
+
+    K3 -- No --> M[Fijar pieza al tablero\ncon OR bit a bit]
+    M --> O[Revisar filas llenas\ncon máscara AND]
+    O --> P{¿Hay filas\nllenas?}
+    P -- Sí --> Q[Eliminar filas llenas\ny bajar las superiores]
+    Q --> R[Generar nueva pieza]
+    P -- No --> R
+    R --> F
+
+    N --> S[Liberar memoria\ndel tablero con delete]
+    Z --> S
+    S --> T([FIN])

@@ -1,0 +1,281 @@
+---
+title: "Desafío 1: Tetris"
+subtitle: "Informática 2 - C++"
+author: "Cristian Rivera González"
+date: "2026-03-13"
+output:
+  html_document:
+    theme: bootstrap
+    toc: true
+    toc_float: true
+    number_sections: false
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+
+**Universidad de Antioquia — Facultad de Ingeniería**  
+
+**Ingeniería de Telecomunicaciones**  
+
+**Informática II — Semestre 2026-1**
+
+---
+
+## 1. Contextualización del Problema
+
+El desafío consiste en implementar una versión simplificada del juego Tetris que funcione
+completamente desde la consola. A diferencia del Tetris que todos conocemos, esta versión
+no va a tener animaciones en tiempo real ni colores; en cambio, el juego funciona por turnos:
+el sistema muestra el tablero, el jugador elige una acción (mover, rotar o bajar la pieza), y
+el tablero se actualiza.
+
+Lo que hace especial este proyecto es que el tablero y las piezas deben manejarse usando
+**operaciones a nivel de bits**, que es una forma de representar y manipular datos directamente
+en su forma binaria (ceros y unos). Esto significa que en lugar de guardar cada celda del
+tablero como un número entero normal, se va a usar cada bit individual para representar si
+una celda está ocupada o no. Por ejemplo, si el tablero tiene 8 columnas de ancho, una sola
+fila puede representarse con un solo byte (8 bits), donde un `1` indica que la celda está
+ocupada y un `0` que está vacía.
+
+Además del manejo de bits, el proyecto requiere usar **memoria dinámica** para construir el
+tablero en tiempo de ejecución, ya que el usuario define el tamaño al inicio del programa.
+Esto significa que no podemos declarar el tablero con un tamaño fijo en el código; tenemos
+que reservar la memoria con `new` y liberarla con `delete` al final.
+
+En resumen, el proyecto integra casi todos los temas que hemos visto en el curso:
+variables, estructuras de control, arreglos, funciones, apuntadores, operadores de bits
+y memoria dinámica.
+
+---
+
+## 2. Análisis del Problema
+
+### 2.1 ¿Qué necesita el programa?
+
+Pensando en el problema, identifico que el programa necesita manejar principalmente
+tres cosas:
+
+1. **El tablero:** una cuadrícula de filas y columnas donde caen las piezas.
+2. **Las piezas:** los 7 tetriminos clásicos (I, O, T, S, Z, J, L), de los cuales hay que
+   implementar al menos 5.
+3. **La lógica del juego:** mover piezas, detectar colisiones, limpiar filas llenas y
+   detectar el game over.
+
+### 2.2 Representación del tablero con bits
+
+Esta es la parte más difícil del proyecto. La idea es que cada fila del tablero se represente
+como un número entero, donde cada bit corresponde a una columna. Si el tablero tiene
+8 columnas de ancho, cada fila es un `uint8_t` (un entero sin signo de 8 bits). Si el tablero
+tiene 16 columnas, cada fila sería un `uint16_t`, y así sucesivamente.
+
+Por ejemplo, una fila donde las columnas 0, 2 y 5 están ocupadas se vería así en binario:
+
+```
+Columnas: 7 6 5 4 3 2 1 0
+Bits:     0 0 1 0 0 1 0 1   →  valor decimal: 37
+```
+
+> **Nota:** Todavía no tengo completamente claro cómo voy a manejar tableros cuyo ancho
+> sea mayor a 32 columnas, porque los tipos enteros estándar tienen un límite de bits.
+> Por ahora asumo que el tablero no va a superar 32 columnas de ancho, así que usaría
+> `uint32_t` como tipo de dato para cada fila. Esto es algo que debo revisar mejor
+> durante la implementación.
+
+El tablero completo entonces sería un **arreglo dinámico de punteros**, donde cada elemento
+es una fila representada por el tipo de entero correspondiente al ancho.
+
+### 2.3 Representación de las piezas con bits
+
+Cada pieza del Tetris ocupa una matriz pequeña (por ejemplo, 4x4 o 3x3). La idea es
+representar cada pieza como un número entero de 16 bits, donde cada grupo de 4 bits
+representa una fila de la pieza.
+
+Por ejemplo, la pieza I horizontal:
+```
+1 1 1 1   →  fila 0: 1111 = 0xF
+0 0 0 0   →  fila 1: 0000 = 0x0
+0 0 0 0   →  fila 2: 0000 = 0x0
+0 0 0 0   →  fila 3: 0000 = 0x0
+
+Representación: 0xF000
+```
+
+La pieza T:
+```
+0 1 0   →  010
+1 1 1   →  111
+0 0 0   →  000
+
+Representación: pensaría usar algo similar con un uint16_t
+```
+
+> **Nota:** Todavía no estoy seguro de si usar un `uint16_t` por pieza es suficiente para
+> todas las piezas o si algunas necesitarían más bits. Tampoco tengo del todo claro
+> cómo voy a hacer las rotaciones usando bits; sé que tiene que ver con desplazamientos
+> y máscaras, pero aún debo trabajar más en esa parte.
+
+### 2.4 Detección de colisiones
+
+La detección de colisiones se haría comparando los bits de la pieza con los bits del tablero
+en la posición donde va a caer. Si hacemos un AND (`&`) entre los bits de la fila de la pieza
+y los bits de la fila del tablero, el resultado debería ser `0` si no hay colisión. Si el resultado
+es diferente de `0`, significa que algún bit coincide y hay colisión.
+
+También hay que verificar que la pieza no se salga de los bordes del tablero, lo cual
+implica revisar si los bits de la pieza, después de desplazarse, se salen del rango de
+columnas válidas.
+
+### 2.5 Limpieza de filas
+
+Cuando una fila del tablero tiene todos sus bits en `1`, significa que está completamente
+llena y debe eliminarse. Para verificarlo, podría comparar la fila con una máscara que
+tenga todos los bits del ancho del tablero en `1`. Si `fila & mascara == mascara`, la fila
+está llena.
+
+Cuando se elimina una fila, todas las filas superiores deben bajar una posición.
+Esto lo haría moviendo los punteros del arreglo, o simplemente copiando los valores
+de cada fila hacia la posición siguiente.
+
+> **Nota:** No tengo claro todavía si es más eficiente mover los punteros o copiar los
+> valores. Intuyo que mover los punteros sería más rápido, pero debo pensarlo mejor.
+
+### 2.6 Rotación de piezas
+
+La rotación es lo que más me preocupa porque implica transformar la representación
+en bits de una pieza para que quede girada 90 grados. Por ahora tengo la idea de
+que podría tener guardadas las 4 orientaciones posibles de cada pieza como constantes,
+y simplemente cambiar entre ellas cuando el usuario rote. Esto sería más sencillo que
+calcular la rotación en tiempo real con bits.
+
+### 2.7 Memoria dinámica
+
+El tablero se va a crear con `new` al inicio del programa, una vez que el usuario ingrese
+las dimensiones. Cada fila será un elemento del arreglo dinámico. Al terminar el programa,
+hay que liberar toda esa memoria con `delete[]`.
+
+También estoy pensando si las piezas deben crearse dinámicamente o si con variables
+locales es suficiente. Por ahora creo que las piezas pueden ser variables locales dentro
+de la función del juego, ya que no necesitan persistir más allá de su turno.
+
+### 2.8 Funciones principales identificadas
+
+Pensando en cómo organizar el código, identifico las siguientes funciones necesarias:
+
+- `crearTablero(ancho, alto)` → reserva memoria dinámica para el tablero.
+- `liberarTablero(tablero, alto)` → libera la memoria al terminar.
+- `imprimirTablero(tablero, ancho, alto)` → muestra el tablero en consola.
+- `verificarColision(tablero, pieza, fila, columna)` → comprueba si la pieza puede moverse.
+- `fijarPieza(tablero, pieza, fila, columna)` → "pega" la pieza al tablero.
+- `limpiarFilas(tablero, ancho, alto)` → elimina filas completas.
+- `verificarGameOver(tablero, ancho)` → detecta si el juego terminó.
+- `rotar(pieza)` → rota la pieza 90 grados.
+
+> **Nota:** Probablemente me falten funciones o algunas de estas terminen dividiéndose
+> en más partes durante la implementación.
+
+---
+
+## 3. Diseño Preliminar
+
+### 3.1 Estructura general del programa
+
+El programa tendrá un flujo principal muy parecido a los programas con menú que ya hemos
+hecho en el curso, pero con un ciclo de juego en lugar de un menú de opciones:
+
+1. Pedir dimensiones del tablero al usuario y validarlas.
+2. Crear el tablero dinámicamente.
+3. Generar la primera pieza.
+4. Entrar al ciclo principal del juego:
+   - Mostrar el tablero con la pieza actual.
+   - Pedir acción al usuario.
+   - Aplicar el movimiento si es válido.
+   - Si la pieza no puede bajar más, fijarla al tablero.
+   - Limpiar filas llenas.
+   - Generar nueva pieza.
+   - Verificar game over.
+5. Al terminar, liberar la memoria y mostrar mensaje de fin.
+
+### 3.2 Tipos de datos seleccionados
+
+| Elemento | Tipo de dato | Justificación |
+|----------|-------------|---------------|
+| Fila del tablero (ancho ≤ 8) | `uint8_t*` | 8 bits = 8 columnas, máximo ahorro |
+| Fila del tablero (ancho ≤ 16) | `uint16_t*` | 16 bits = 16 columnas |
+| Fila del tablero (ancho ≤ 32) | `uint32_t*` | 32 bits = 32 columnas |
+| Tablero completo | `uint8_t**` | Arreglo dinámico de punteros a filas |
+| Representación de pieza | `uint16_t` | 16 bits para una matriz 4x4 |
+| Posición de pieza | `int` | Fila y columna actuales |
+| Tipo de pieza | `int` | Índice del 0 al 6 para cada tetrimino |
+
+> **Nota:** Estoy pensando si el tablero debería ser `uint8_t**` siempre o si debería
+> cambiar según el ancho. Por ahora voy a asumir que el ancho máximo será 32 para
+> simplificar, pero esto podría cambiar.
+
+### 3.3 Piezas definidas
+
+Las 5 piezas mínimas que voy a implementar son I, O, T, S y Z. Si alcanza el tiempo,
+agregaré J y L. Cada pieza tendrá sus 4 orientaciones guardadas como constantes:
+
+```cpp
+// Pieza I — 4 orientaciones
+uint16_t piezaI[4] = {
+    0xF000,  // horizontal: 1111 0000 0000 0000
+    0x8888,  // vertical:   1000 1000 1000 1000
+    0xF000,  // igual a horizontal
+    0x8888   // igual a vertical
+};
+
+// Pieza O — 1 orientación (cuadrado, no rota)
+uint16_t piezaO[4] = {
+    0xCC00,  // 1100 1100 0000 0000
+    0xCC00,
+    0xCC00,
+    0xCC00
+};
+```
+
+> **Nota:** Todavía debo calcular y verificar los valores exactos en hexadecimal para
+> todas las piezas. Los valores que pongo aquí son aproximados y pueden tener errores;
+> los confirmaré durante la implementación dibujando cada pieza en papel primero.
+
+### 3.4 Diagrama de flujo preliminar
+
+
+
+![Diagrama de flujo del programa Tetris. Fuente: https://mermaid.js.org/](mermaid-diagram-2026-03-13-104548.png)
+
+---
+
+
+## 5. Problemas Anticipados y Dudas Pendientes
+
+Durante el análisis encontré varios puntos que todavía no tengo del todo claros
+y que voy a tener que resolver durante la implementación:
+
+1. **Rotación con bits:** Sé que debo usar desplazamientos y máscaras para rotar,
+   pero calcular exactamente cómo hacer la rotación en bits de una pieza de 4x4
+   no lo tengo claro aún. Por ahora voy a guardar las 4 orientaciones como constantes.
+
+2. **Ancho variable del tablero:** El tipo de dato de cada fila cambia según el ancho.
+   Voy a pensar cómo manejar eso sin complicar demasiado el código, quizás usando
+   `uint32_t` para todos los casos y simplemente ignorando los bits que sobren.
+
+3. **Desplazamiento de la pieza sobre el tablero:** Cuando la pieza está en la columna 3,
+   sus bits necesitan estar desplazados 3 posiciones. Tengo que asegurarme de hacer
+   ese desplazamiento correctamente antes de comparar con los bits del tablero.
+
+4. **Colisión con el borde derecho:** Si la pieza se desplaza muy a la derecha, sus bits
+   podrían "desbordarse" más allá del ancho del tablero. Tengo que pensar cómo
+   detectar ese caso con una máscara.
+
+5. **Generación de piezas:** El enunciado no explica si las piezas deben generarse
+   de forma aleatoria. Voy a asumir que sí, usando el operador módulo sobre un
+   contador que incremente en cada turno, ya que no podemos usar librerías externas.
+
+
+
