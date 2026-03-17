@@ -7,8 +7,8 @@
 // primero que quise implementar para ver como quedaria
 // la estructura del programa.
 
-#ifndef JUEGO_H
-#define JUEGO_H
+//#ifndef JUEGO_H
+//#define JUEGO_H
 
 #include <iostream>
 
@@ -21,4 +21,4 @@ void mostrarMenu();
 void mostrarInstrucciones();
 void iniciarJuego();
 
-#endif
+//#endif
