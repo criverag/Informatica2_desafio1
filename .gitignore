@@ -29,3 +29,12 @@ Thumbs.db===== IDEs y editores =====
 *.log
 *.tmp
 *.bak
+.Rhistory
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.creator
+*.creator.user
+*.creator.user.*
+*.autosave
+.qtcreator/
